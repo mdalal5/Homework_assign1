@@ -1,0 +1,387 @@
+---
+title: "assign_solu1"
+output: html_document
+date: "2023-09-16"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+library(tidytuesdayR)
+library(here)
+library(ggplot2)
+
+```
+**Part 1**
+
+```{r}
+tuesdata <- tidytuesdayR::tt_load("2022-01-18")
+chocolate <- tuesdata$chocolate
+
+```
+
+```{r}
+if (!dir.exists(here("data"))) {
+    dir.create(here("data"))
+}
+
+# saves data only once (not each time you knit a R Markdown)
+if (!file.exists(here("data", "chocolate.RDS"))) {
+    url_csv <- "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-01-18/chocolate.csv"
+    chocolate <- readr::read_csv(url_csv)
+
+    # save the file to RDS objects
+    saveRDS(chocolate, file = here("data", "chocolate.RDS"))
+}
+```
+
+```{r}
+chocolate <- readRDS(here("data", "chocolate.RDS"))
+as_tibble(chocolate)
+glimpse(chocolate)
+```
+```{r}
+hist(chocolate$rating, breaks = 10)
+hist(chocolate$rating, breaks = 15)
+hist(chocolate$rating, breaks = 20)
+hist(chocolate$rating, breaks = 25)
+```
+```{r}
+chocolate %>%
+group_by(country_of_bean_origin) %>%
+summarize(rating = n())
+```
+```{r}
+ecuador_stats <- chocolate %>%
+filter(country_of_bean_origin == "Ecuador") %>%
+summarize(mean = mean(rating),
+sd = sd(rating),
+total = n())
+
+# Print results
+print(ecuador_stats)
+```
+```{r}
+best_ecuador_chocolate <- chocolate %>%
+filter(country_of_bean_origin == "Ecuador") %>%
+group_by(company_location) %>%
+summarize(mean_rating = mean(rating)) %>%
+arrange(desc(mean_rating)) %>%
+head(5)
+
+# Print the results
+print(best_ecuador_chocolate)
+```
+```{r}
+average_ratings_by_country <- chocolate %>%
+group_by(country_of_bean_origin) %>%
+summarize(mean_rating = mean(rating, na.rm = TRUE)) %>%
+arrange(desc(mean_rating))
+
+# top 3 countries
+head(average_ratings_by_country, 3)
+```
+
+```{r}
+average_ratings_by_country <- chocolate %>%
+group_by(country_of_bean_origin) %>%
+summarize(mean_rating = mean(rating, na.rm = TRUE),
+num_reviews = n()) %>%
+filter(num_reviews >= 10) %>%
+arrange(desc(mean_rating))
+
+##top 3 countries
+head(average_ratings_by_country, 3)
+```
+
+```{r}
+average_ratings_by_country <- chocolate %>%
+group_by(country_of_bean_origin) %>%
+summarize (
+num_reviews = n()) %>%
+filter(num_reviews >= 50) 
+# Print the results
+print(head(average_ratings_by_country))
+```
+
+
+```{r}
+countries_with_50_reviews <- chocolate %>%
+group_by(country_of_bean_origin) %>%
+filter(n() >= 50) %>%
+pull(country_of_bean_origin)
+
+chocolate_data_filtered <- chocolate %>%
+filter(country_of_bean_origin %in% countries_with_50_reviews)
+# Print the results
+print(countries_with_50_reviews)
+```
+
+```{r}
+chocolate <- chocolate %>%
+  mutate(chocolate_group = case_when(
+    cocoa_percent < 60 ~ "<60%",
+    cocoa_percent >= 60 & cocoa_percent < 70 ~ ">=60 to <70%",
+    cocoa_percent >= 70 & cocoa_percent < 90 ~ ">=70 to <90%",
+    cocoa_percent >= 90 ~ ">=90%",
+    TRUE ~ NA_character_  
+  ))
+```
+
+```{r}
+library(forcats)
+chocolate$chocolate_group <- fct_relevel(chocolate$chocolate_group,
+  "<60%", ">=60 to <70%", ">=70 to <90%", ">=90%"
+)
+head(chocolate, 5)
+```
+
+```{r}
+library(ggplot2)
+# Create a boxplot for each country
+boxplot_plots <- ggplot(chocolate, aes(x = chocolate_group, y = rating)) +
+  geom_boxplot() +
+  facet_wrap(~ country_of_bean_origin, ncol = 4) +  # Facet by country with 4 plots per row
+  labs(x = "Chocolate Group", y = "Ratings") +  # Labels for axes
+  theme_minimal()  # Optional: Choose a theme
+
+# Display the boxplots
+print(boxplot_plots)
+```
+
+**Part2**
+```{r}
+library(gapminder)
+chocolate$country<-chocolate$company_location
+```
+
+```{r}
+chocolate=left_join(x = chocolate, y = gapminder, by = "country")
+```
+
+```{r}
+chocolate_country_atleast_10reviews <- chocolate %>%
+group_by(country_of_bean_origin) %>%
+summarize (num_reviews = n()) %>%
+filter(num_reviews >= 10) %>%
+# Print the results
+head()
+```
+
+```{r}
+chocolate<- chocolate %>%
+filter(country_of_bean_origin != "Blend")
+head(chocolate, 10)
+```
+```{r}
+chocolate <- chocolate %>%
+filter(!is.na(continent))
+```
+
+```{r}
+violin_plot <- chocolate %>%
+ggplot(aes(x = continent, y = rating)) +
+geom_violin() +
+labs(
+title = " Plots of Ratings by Continent",
+x = "Continent",
+y = "Rating"
+)
+
+# Print
+print(violin_plot)
+```
+**part3**
+```{r}
+chocolate <- chocolate %>%
+mutate(
+beans = as.integer(str_detect(ingredients, "B")),
+sugar = as.integer(str_detect(ingredients, "S")),
+cocoa_butter = as.integer(str_detect(ingredients, "C")),
+vanilla = as.integer(str_detect(ingredients, "V")),
+lecithin = as.integer(str_detect(ingredients, "L")),
+salt = as.integer(str_detect(ingredients, "M")))
+```
+
+```{r}
+chocolate <- chocolate %>%
+mutate(
+char_cocoa = as.integer(str_detect(most_memorable_characteristics, "cocoa")),
+char_sweet = as.integer(str_detect(most_memorable_characteristics, "sweet")),
+char_nutty = as.integer(str_detect(most_memorable_characteristics, "nutty")),
+char_creamy = as.integer(str_detect(most_memorable_characteristics, "creamy")),
+char_roasty = as.integer(str_detect(most_memorable_characteristics, "roasty")),
+char_earthy = as.integer(str_detect(most_memorable_characteristics, "earthy")))
+```
+
+```{r}
+chocolate_widedata <- chocolate %>%
+group_by(review_date) %>%
+summarize(
+beans = mean(beans),
+sugar = mean(sugar),
+cocoa_butter = mean(cocoa_butter),
+vanilla = mean(vanilla),
+lecithin = mean(lecithin),
+salt = mean(salt),
+char_cocoa = mean(char_cocoa),
+char_sweet = mean(char_sweet),
+char_nutty = mean(char_nutty),
+char_creamy = mean(char_creamy),
+char_roasty = mean(char_roasty),
+char_earthy = mean(char_earthy)
+)
+print(chocolate_widedata)
+```
+
+```{r}
+long_data <- chocolate_widedata %>%
+pivot_longer(
+cols = -review_date,
+names_to = "feature",
+values_to = "mean_score"
+)
+
+# Print
+print(long_data)
+```
+**part4**
+```{r}
+library(tidyverse)
+long_data %>%
+    ggplot(aes(review_date, mean_score, color = feature)) +
+    geom_point() +
+    geom_smooth(
+        method = "loess",
+        se = FALSE
+    ) +
+labs(
+title = "Mean Scores Over Time",
+subtitle = "Trends in Mean Scores for Different Features",
+x = "Year",
+y = "Mean Score",
+caption = "Monika"
+) +
+theme_minimal()
+```
+
+```{r}
+long_data %>%
+    ggplot(aes(review_date, mean_score, color = feature)) +
+    geom_point() +
+labs(
+title = "Mean Scores Over Time",
+subtitle = "Trends in Mean Scores for Different Features",
+x = "Year",
+y = "Mean Score",
+caption = "Monika"
+) +
+theme_minimal()
+```
+
+
+```{r}
+scatter_plots <- long_data %>%
+ggplot(aes(x = review_date, y = mean_score, color = feature)) +
+geom_point() + # Scatter plot
+geom_smooth(method = "loess", se = FALSE) +
+facet_wrap(~feature, scales = "free_y", ncol = 2) +
+labs(
+title = "Mean Scores Over Time",
+subtitle = "Trends in Mean Scores for Different Features",
+x = "Year",
+y = "Mean Score",
+caption = "Monika"
+) +
+theme_minimal() 
+# Print
+print(scatter_plots)
+```
+```{r}
+long_data %>%
+    ggplot(aes(review_date, mean_score, color = feature)) +
+    geom_point() +
+labs(
+title = "Mean Scores Over Time",
+subtitle = "Trends in Mean Scores for Different Features",
+x = "Year",
+y = "Mean Score",
+caption = "Monika"
+) +
+theme_grey()
+theme(
+plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
+plot.subtitle = element_text(size = 12, hjust = 0.5),
+plot.caption = element_text(size = 10, hjust = 0.5),
+axis.text.x = element_text(size = 10),
+axis.text.y = element_text(size = 10),
+legend.title = element_blank(),
+legend.text = element_text(size = 10),
+legend.position = "top"
+)
+```
+```{r}
+# Apply a nonlinear transformation to the mean_score
+long_data$transformed_mean_score <- sqrt(long_data$mean_score)
+
+# Create a scatter plot with the transformed data
+scatter_plot <- ggplot(long_data, aes(x = review_date, y = transformed_mean_score, color=feature)) +
+  geom_point() +
+  labs(x = "review_date", y = "Transformed Mean Score") +
+  theme_minimal()
+
+# Display the scatter plot
+print(scatter_plot)
+
+```
+
+**Part:5**
+**Making worst plot of chocolate_group and rating**
+```{r}
+
+qplot(x=chocolate$chocolate_group, y=chocolate$rating, data = chocolate, geom = "boxplot")
+
+```
+```{r}
+boxplot(chocolate$chocolate_group~chocolate$rating, 
+        data = chocolate,
+        xlab = "Rating",
+        ylab = "Chocolate Groups",      
+        border = "gray40",
+        boxwex = 0.50, boxcol = "gray40", boxfill = "gray87",
+        whisklty = 1, whisklwd=1, whiskcol = "gray40",
+        staplewex = 0, staplecol = NA,
+        outpch = 21, outbg = NA, outcol = NA
+        )
+points(jitter(chocolate$rating), chocolate$chocolate_group, cex=.4, pch=19, col=rgb(0,0,0,0.2))
+
+```
+```{r}
+qplot(x=chocolate$chocolate_group, y=chocolate$rating, data = chocolate, geom = "boxplot",
+      main = "Boxplot of Chocolate Groups",
+                      xlab = "Chocolate Group",
+                      ylab = "Rating",
+                  
+)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
